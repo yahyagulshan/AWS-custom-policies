@@ -1,0 +1,60 @@
+mport boto3
+import json
+import datetime
+
+def lambda_handler(event, context):
+    s3 = boto3.client('s3')
+    cloudwatch = boto3.client('cloudwatch')
+    
+    # Get list of all S3 buckets
+    buckets = s3.list_buckets()
+    
+    total_buckets = len(buckets['Buckets'])
+    versioning_enabled_buckets = []
+    versioning_disabled_buckets = []
+    
+    for bucket in buckets['Buckets']:
+        bucket_name = bucket['Name']
+        versioning = s3.get_bucket_versioning(Bucket=bucket_name)
+        
+        if 'Status' in versioning and versioning['Status'] == 'Enabled':
+            versioning_enabled_buckets.append(bucket_name)
+        else:
+            versioning_disabled_buckets.append(bucket_name)
+    
+    # Publish custom metrics to CloudWatch
+    cloudwatch.put_metric_data(
+        Namespace='S3/Versioning',
+        MetricData=[
+            {
+                'MetricName': 'TotalBuckets',
+                'Timestamp': datetime.datetime.utcnow(),
+                'Value': total_buckets,
+                'Unit': 'Count'
+            },
+            {
+                'MetricName': 'VersioningEnabledBuckets',
+                'Timestamp': datetime.datetime.utcnow(),
+                'Value': len(versioning_enabled_buckets),
+                'Unit': 'Count'
+            },
+            {
+                'MetricName': 'VersioningDisabledBuckets',
+                'Timestamp': datetime.datetime.utcnow(),
+                'Value': len(versioning_disabled_buckets),
+                'Unit': 'Count'
+            }
+        ]
+    )
+    
+    # Create a detailed log output
+    response = {
+        'TotalBuckets': total_buckets,
+        'VersioningEnabledBuckets': versioning_enabled_buckets,
+        'VersioningDisabledBuckets': versioning_disabled_buckets
+    }
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps(response)
+    }
