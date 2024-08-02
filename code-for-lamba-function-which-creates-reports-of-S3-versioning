@@ -1,0 +1,37 @@
+import boto3
+import json
+import datetime
+
+s3_client = boto3.client('s3')
+cloudwatch_client = boto3.client('cloudwatch')
+
+def lambda_handler(event, context):
+    buckets = s3_client.list_buckets()
+    for bucket in buckets['Buckets']:
+        bucket_name = bucket['Name']
+        versioning = s3_client.get_bucket_versioning(Bucket=bucket_name)
+        status = versioning.get('Status', 'Disabled')
+
+        # Publish metrics to CloudWatch
+        cloudwatch_client.put_metric_data(
+            Namespace='S3/Versioning',
+            MetricData=[
+                {
+                    'MetricName': 'BucketVersioningStatus',
+                    'Dimensions': [
+                        {
+                            'Name': 'BucketName',
+                            'Value': bucket_name
+                        },
+                    ],
+                    'Timestamp': datetime.datetime.utcnow(),
+                    'Value': 1 if status == 'Enabled' else 0,
+                    'Unit': 'Count'
+                },
+            ]
+        )
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Metrics published successfully.')
+    }
