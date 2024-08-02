@@ -1,0 +1,70 @@
+import boto3
+import datetime
+
+lambda_client = boto3.client('lambda')
+cloudwatch_client = boto3.client('cloudwatch')
+
+def lambda_handler(event, context):
+    paginator = lambda_client.get_paginator('list_functions')
+    response_iterator = paginator.paginate()
+
+    runtime_counts = {}
+    function_runtimes = {}
+
+    for response in response_iterator:
+        for function in response['Functions']:
+            runtime = function['Runtime']
+            function_name = function['FunctionName']
+            function_runtimes[function_name] = runtime
+            if runtime in runtime_counts:
+                runtime_counts[runtime] += 1
+            else:
+                runtime_counts[runtime] = 1
+
+    # Publish metrics to CloudWatch
+    metric_data = []
+    for runtime, count in runtime_counts.items():
+        metric_data.append({
+            'MetricName': 'LambdaRuntimeUsage',
+            'Dimensions': [
+                {
+                    'Name': 'Runtime',
+                    'Value': runtime
+                },
+            ],
+            'Timestamp': datetime.datetime.utcnow(),
+            'Value': count,
+            'Unit': 'Count'
+        })
+
+    # Publish function names and runtimes to CloudWatch as logs
+    for function_name, runtime in function_runtimes.items():
+        cloudwatch_client.put_metric_data(
+            Namespace='Lambda/FunctionRuntimes',
+            MetricData=[
+                {
+                    'MetricName': function_name,
+                    'Dimensions': [
+                        {
+                            'Name': 'Runtime',
+                            'Value': runtime
+                        }
+                    ],
+                    'Timestamp': datetime.datetime.utcnow(),
+                    'Value': 1,
+                    'Unit': 'Count'
+                }
+            ]
+        )
+
+    if metric_data:
+        cloudwatch_client.put_metric_data(
+            Namespace='Lambda/RuntimeUsage',
+            MetricData=metric_data
+        )
+
+    return {
+        'statusCode': 200,
+        'body': 'Metrics published successfully.'
+    }
+    }
