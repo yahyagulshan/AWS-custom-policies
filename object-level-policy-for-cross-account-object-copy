@@ -1,0 +1,38 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "DelegateS3Access",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::other-account-number:role/S3MigrationRole"
+            },
+            "Action": [
+                "s3:PutObject*",
+                "s3:PutObjectAcl",
+                "s3:PutObjectVersionAcl",
+                "s3:GetObject*",
+                "s3:ListBucket*",
+                "s3:PutBucket*",
+                "s3:GetBucket*",
+                "s3:DeleteObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::bucket-name/*",
+                "arn:aws:s3:::bucket-name"
+            ]
+        },
+        {
+            "Sid": "FullPermission",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::other-account-number:user/user-name"
+            },
+            "Action": "s3:*",
+            "Resource": [
+                "arn:aws:s3:::bucket-name/*",
+                "arn:aws:s3:::bucket-name"
+            ]
+        }
+    ]
+}
