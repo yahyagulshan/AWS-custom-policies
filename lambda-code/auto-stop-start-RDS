@@ -1,0 +1,53 @@
+import boto3
+import datetime
+import time
+
+def lambda_handler(event, context):
+    rds_client = boto3.client('rds')
+    sns_client = boto3.client('sns')
+
+    # Get the current time in PST
+    current_time = datetime.datetime.now() + datetime.timedelta(hours=5)  # Adjust for PST timezone
+
+    # Start RDS instance at 3:40 AM PST
+    if current_time.hour == 23 and current_time.minute == 28:
+        try:
+            response = rds_client.start_db_instance(
+                DBInstanceIdentifier='Replace-with-your-RDS-instance-Identifier'
+            )
+            sns_client.publish(
+                TopicArn='arn:aws:sns:us-east-1:xxxxxxxxxxxxxxxx:RDS-status', # Replace with your sns
+                Message='RDS instance started successfully.',
+                Subject='RDS Instance Start'
+            )
+            return {'statusCode': 200, 'body': 'RDS instance started successfully.'}
+        except Exception as e:
+            sns_client.publish(
+                TopicArn='arn:aws:sns:us-east-1:xxxxxxxxxxx:RDS-status', # Replace with your sns
+                Message=f'Error starting RDS instance: {e}',
+                Subject='RDS Instance Start Error'
+            )
+            return {'statusCode': 500, 'body': f'Error starting RDS instance: {e}'}
+
+    # Stop RDS instance at 3:55 AM PST
+    elif current_time.hour == 23 and current_time.minute == 40:
+        try:
+            response = rds_client.stop_db_instance(
+                DBInstanceIdentifier='Replace-with-your-RDS-instance-Identifier'
+            )
+            sns_client.publish(
+                TopicArn='arn:aws:sns:us-east-1:xxxxxxxxxxxxxxxx:RDS-status', # Replace with your sns
+                Message='RDS instance stopped successfully.',
+                Subject='RDS Instance Stop'
+            )
+            return {'statusCode': 200, 'body': 'RDS instance stopped successfully.'}
+        except Exception as e:
+            sns_client.publish(
+                TopicArn='arn:aws:sns:us-east-1:xxxxxxxxxxxxxxxx:RDS-status', # Replace with your sns
+                Message=f'Error stopping RDS instance: {e}',
+                Subject='RDS Instance Stop Error'
+            )
+            return {'statusCode': 500, 'body': f'Error stopping RDS instance: {e}'}
+
+    else:
+        return {'statusCode': 200, 'body': 'Outside of start/stop window.'}
